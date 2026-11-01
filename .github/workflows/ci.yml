@@ -1,10 +1,10 @@
 name: ci
 
 on:
-  pull_request:          # PR: 테스트만 (합치기 전에 확인)
+  pull_request: # PR: 테스트만 (합치기 전에 확인)
   push:
-    branches: [main]     # main: 테스트만 (합친 결과 확인)
-    tags: ["v*"]         # v1.0 같은 태그: 테스트 → 이미지 배포
+    branches: [main] # main: 테스트만 (합친 결과 확인)
+    tags: ["v*"] # v1.0 같은 태그: 테스트 → 이미지 배포
 
 permissions:
   contents: read
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest  # 윈도우/macOS도 지원하지만 비용 UP
+    runs-on: ubuntu-latest # 윈도우/macOS도 지원하지만 비용 UP
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -23,7 +23,7 @@ jobs:
 
   image:
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v')   # v 로 시작하는 태그를 푸시했을 때만 이미지 배포
+    if: startsWith(github.ref, 'refs/tags/v') # v 로 시작하는 태그를 푸시했을 때만 이미지 배포
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -45,3 +45,18 @@ jobs:
             ${{ env.IMAGE }}/eta-api:${{ github.ref_name }}
             ${{ env.IMAGE }}/eta-api:latest
 
+  deploy:
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render 배포 요청
+        env:
+          # Render 서비스의 Deploy Hook URL. GITHUB_TOKEN 과 달리 저장소 Secrets 에 직접 등록한다
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL 이 등록되지 않아 배포를 건너뛴다"
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"   # Render 가 서비스에 설정된 이미지(:latest)를 다시 받아 실행한다
