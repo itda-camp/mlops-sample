@@ -21,6 +21,25 @@ jobs:
       # uv.lock 그대로 설치 후 실행 (로컬·VS Code 와 같은 설정)
       - run: uv run --locked pytest -q
 
+  train:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      # 학습 라이브러리(scikit-learn, torch, ONNX 변환 도구)는 pyproject.toml 의 train 그룹. 로컬과 같은 명령이다.
+      - run: uv run --locked --group train python -m training.train_sklearn
+      - run: uv run --locked python -m training.validate_model sklearn # 실패하면 여기서 중단 → 배포 안 됨
+      - run: uv run --locked --group train python -m training.train_dl
+      - run: uv run --locked python -m training.validate_model dl
+      - run: uv run --locked --group train python -m training.export_onnx # 원본 vs ONNX 예측 일치 확인 포함
+      - uses: actions/upload-artifact@v7
+        with:
+          name: model-artifacts
+          path: artifacts/
+
   image:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v') # v 로 시작하는 태그를 푸시했을 때만 이미지 배포
