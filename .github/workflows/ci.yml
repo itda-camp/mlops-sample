@@ -59,4 +59,7 @@ jobs:
             echo "RENDER_DEPLOY_HOOK_URL 이 등록되지 않아 배포를 건너뛴다"
             exit 0
           fi
-          curl -fsS -X POST "$DEPLOY_HOOK"   # Render 가 서비스에 설정된 이미지(:latest)를 다시 받아 실행한다
+          # 방금 올린 버전 태그의 이미지로 배포한다 (imgURL 은 URL 인코딩한 이미지 주소)
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/eta-api:${GITHUB_REF_NAME}"
+          IMG_URL=$(jq -rn --arg v "$IMAGE" '$v|@uri')
+          curl -fsS -X POST "${DEPLOY_HOOK}&imgURL=${IMG_URL}"
